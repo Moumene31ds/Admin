@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dza-Genius | لوحة التحكم</title>
+    <title>Dza-Genius | غرفة التحكم المتقدمة</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
 
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
@@ -14,74 +14,153 @@
 
     <style>
         body { font-family: 'Cairo', sans-serif; background: #0f172a; color: #f8fafc; }
-        .glass { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.05); }
+        .glass { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.08); box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1); }
+        
+        /* Toast Notification Animation */
+        @keyframes slideIn {
+            from { transform: translateX(-100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        .toast { animation: slideIn 0.3s ease-out forwards; }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #1e293b; }
+        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #64748b; }
     </style>
 </head>
-<body class="min-h-screen p-6">
+<body class="min-h-screen p-4 md:p-6 bg-[url('https://tailwindcss.com/_next/static/media/hero-dark.9a75e549.png')] bg-cover bg-fixed">
 
-    <div id="loginSection" class="fixed inset-0 z-50 bg-slate-900 flex items-center justify-center">
-        <div class="glass p-8 rounded-2xl text-center max-w-sm w-full border border-blue-500/30">
-            <h1 class="text-2xl font-bold text-blue-400 mb-2">Dza-Genius Admin</h1>
-            <p class="text-gray-400 text-sm mb-6">منطقة محظورة: للمدير فقط</p>
-            <button onclick="loginAdmin()" class="w-full bg-blue-600 hover:bg-blue-500 text-white py-3 rounded-xl font-bold transition">
-                <i class="fa-brands fa-google"></i> دخول المدير
+    <div id="toastContainer" class="fixed bottom-5 left-5 z-[60] flex flex-col gap-2"></div>
+
+    <div id="loginSection" class="fixed inset-0 z-50 bg-slate-900/95 flex items-center justify-center backdrop-blur-sm">
+        <div class="glass p-8 rounded-2xl text-center max-w-sm w-full border-t border-blue-500/50 shadow-2xl shadow-blue-500/10">
+            <div class="w-16 h-16 bg-blue-600/20 rounded-full flex items-center justify-center mx-auto mb-4 text-blue-400 text-2xl">
+                <i class="fa-solid fa-user-shield"></i>
+            </div>
+            <h1 class="text-3xl font-black text-white mb-2">Dza-Genius</h1>
+            <p class="text-blue-200/60 text-sm mb-8 font-semibold">بوابة المشرفين - منطقة محظورة</p>
+            <button onclick="loginAdmin()" class="w-full bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white py-3.5 rounded-xl font-bold transition shadow-lg shadow-blue-600/20 flex items-center justify-center gap-3">
+                <i class="fa-brands fa-google"></i> تسجيل الدخول
             </button>
         </div>
     </div>
 
-    <div id="dashboardSection" class="hidden max-w-6xl mx-auto">
+    <div id="dashboardSection" class="hidden max-w-7xl mx-auto pb-10">
         
-        <header class="flex justify-between items-center mb-8 bg-slate-800/50 p-4 rounded-2xl border border-slate-700">
-            <div>
-                <h1 class="text-2xl font-bold text-white">غرفة القيادة 🎮</h1>
-                <p class="text-xs text-gray-400">مرحباً أيها القائد <span id="adminName" class="text-green-400">...</span></p>
+        <header class="flex flex-col md:flex-row justify-between items-center mb-8 bg-slate-800/60 p-5 rounded-2xl border border-slate-700/50 backdrop-blur-md">
+            <div class="flex items-center gap-4 mb-4 md:mb-0">
+                <div class="w-12 h-12 rounded-full bg-gradient-to-tr from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-xl shadow-lg">DG</div>
+                <div>
+                    <h1 class="text-2xl font-bold text-white">غرفة القيادة 🚀</h1>
+                    <p class="text-xs text-gray-400 font-mono mt-1">Admin: <span id="adminName" class="text-blue-400">...</span></p>
+                </div>
             </div>
-            <button onclick="auth.signOut(); location.reload()" class="bg-red-500/10 text-red-400 px-4 py-2 rounded-lg hover:bg-red-500/20 text-sm font-bold">
-                <i class="fa-solid fa-right-from-bracket"></i> خروج
-            </button>
+            <div class="flex gap-3">
+                <button onclick="loadUsers()" class="glass hover:bg-slate-700 text-gray-300 px-4 py-2 rounded-xl text-sm font-bold transition">
+                    <i class="fa-solid fa-rotate mr-1"></i> تحديث
+                </button>
+                <button onclick="auth.signOut(); location.reload()" class="bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 px-4 py-2 rounded-xl text-sm font-bold transition">
+                    <i class="fa-solid fa-power-off mr-1"></i> خروج
+                </button>
+            </div>
         </header>
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-            <div class="glass p-6 rounded-2xl border-l-4 border-blue-500">
-                <div class="text-gray-400 text-xs font-bold mb-1">إجمالي المستخدمين</div>
-                <div id="totalUsers" class="text-3xl font-black text-white">0</div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
+            <div class="glass p-6 rounded-2xl border-l-4 border-blue-500 relative overflow-hidden group">
+                <div class="absolute right-0 top-0 w-24 h-24 bg-blue-500/10 rounded-bl-full -mr-4 -mt-4 transition group-hover:bg-blue-500/20"></div>
+                <div class="relative z-10">
+                    <div class="text-gray-400 text-xs font-bold mb-2 uppercase tracking-wider">إجمالي المستخدمين</div>
+                    <div class="flex items-end gap-2">
+                        <div id="totalUsers" class="text-4xl font-black text-white">0</div>
+                        <div class="text-blue-400 text-sm mb-1 font-bold">مستخدم</div>
+                    </div>
+                </div>
             </div>
-            <div class="glass p-6 rounded-2xl border-l-4 border-yellow-500 bg-yellow-900/10">
-                <div class="text-yellow-400 text-xs font-bold mb-1">مشتركي VIP</div>
-                <div id="totalVip" class="text-3xl font-black text-white">0</div>
+            
+            <div class="glass p-6 rounded-2xl border-l-4 border-yellow-500 bg-gradient-to-br from-yellow-900/10 to-transparent relative overflow-hidden group">
+                <div class="absolute right-0 top-0 w-24 h-24 bg-yellow-500/10 rounded-bl-full -mr-4 -mt-4 transition group-hover:bg-yellow-500/20"></div>
+                <div class="relative z-10">
+                    <div class="text-yellow-400/80 text-xs font-bold mb-2 uppercase tracking-wider">مشتركي VIP</div>
+                    <div class="flex items-end gap-2">
+                        <div id="totalVip" class="text-4xl font-black text-white">0</div>
+                        <div class="text-yellow-500 text-sm mb-1 font-bold"><i class="fa-solid fa-crown"></i></div>
+                    </div>
+                </div>
             </div>
-            <div class="glass p-6 rounded-2xl border-l-4 border-green-500 bg-green-900/10">
-                <div class="text-green-400 text-xs font-bold mb-1">الأرباح المقدرة (شهرياً)</div>
-                <div id="totalRevenue" class="text-3xl font-black text-white">0 DA</div>
+
+            <div class="glass p-6 rounded-2xl border-l-4 border-green-500 bg-gradient-to-br from-green-900/10 to-transparent relative overflow-hidden group">
+                <div class="absolute right-0 top-0 w-24 h-24 bg-green-500/10 rounded-bl-full -mr-4 -mt-4 transition group-hover:bg-green-500/20"></div>
+                <div class="relative z-10">
+                    <div class="text-green-400/80 text-xs font-bold mb-2 uppercase tracking-wider">الأرباح التقديرية</div>
+                    <div class="flex items-end gap-2">
+                        <div id="totalRevenue" class="text-4xl font-black text-white">0</div>
+                        <div class="text-green-500 text-sm mb-1 font-bold">د.ج</div>
+                    </div>
+                </div>
             </div>
         </div>
 
-        <div class="glass rounded-2xl overflow-hidden">
-            <div class="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-800/50">
-                <h3 class="font-bold text-lg"><i class="fa-solid fa-users"></i> قائمة الأعضاء</h3>
-                <button onclick="loadUsers()" class="text-xs bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded text-white"><i class="fa-solid fa-rotate"></i> تحديث</button>
+        <div class="glass rounded-2xl overflow-hidden shadow-2xl border border-slate-700/50">
+            <div class="p-5 border-b border-slate-700/50 bg-slate-800/40 flex flex-col md:flex-row justify-between items-center gap-4">
+                <h3 class="font-bold text-lg flex items-center gap-2">
+                    <i class="fa-solid fa-users-gear text-blue-500"></i> إدارة الأعضاء
+                </h3>
+                
+                <div class="relative w-full md:w-96">
+                    <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                        <i class="fa-solid fa-search text-gray-500"></i>
+                    </div>
+                    <input type="text" id="searchInput" onkeyup="filterUsers()" 
+                        class="block w-full p-2.5 pr-10 text-sm text-white border border-slate-600 rounded-xl bg-slate-700/50 placeholder-gray-400 focus:ring-blue-500 focus:border-blue-500 transition" 
+                        placeholder="بحث بالاسم أو الإيميل...">
+                </div>
             </div>
             
             <div class="overflow-x-auto">
                 <table class="w-full text-sm text-right">
-                    <thead class="text-xs text-gray-400 uppercase bg-slate-800/80">
+                    <thead class="text-xs text-gray-400 uppercase bg-slate-900/50">
                         <tr>
-                            <th class="px-6 py-3">المستخدم</th>
-                            <th class="px-6 py-3">الإيميل</th>
-                            <th class="px-6 py-3">الحالة</th>
-                            <th class="px-6 py-3">تاريخ الانضمام</th>
-                            <th class="px-6 py-3 text-center">تحكم</th>
+                            <th class="px-6 py-4">المستخدم</th>
+                            <th class="px-6 py-4">بيانات الاتصال</th>
+                            <th class="px-6 py-4 text-center">الحالة</th>
+                            <th class="px-6 py-4">تاريخ الانضمام</th>
+                            <th class="px-6 py-4 text-center">إجراءات سريعة</th>
                         </tr>
                     </thead>
-                    <tbody id="usersTableBody">
+                    <tbody id="usersTableBody" class="divide-y divide-slate-700/50">
                         </tbody>
                 </table>
+            </div>
+            
+            <div class="p-4 bg-slate-800/30 text-center text-xs text-gray-500 border-t border-slate-700/50">
+                عرض آخر <span id="displayedCount" class="text-white font-bold">0</span> مستخدم
+            </div>
+        </div>
+    </div>
+
+    <div id="editModal" class="fixed inset-0 z-[100] bg-black/80 hidden items-center justify-center backdrop-blur-sm">
+        <div class="glass p-6 rounded-2xl w-full max-w-md mx-4 border border-slate-600 scale-95 transition-transform duration-200" id="editModalContent">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <i class="fa-solid fa-user-pen text-blue-400"></i> تعديل المستخدم
+            </h2>
+            <input type="hidden" id="editUid">
+            
+            <div class="mb-4">
+                <label class="block text-gray-400 text-xs font-bold mb-2">الاسم</label>
+                <input type="text" id="editName" class="w-full bg-slate-800 border border-slate-600 rounded-lg p-2.5 text-white focus:border-blue-500 outline-none">
+            </div>
+
+            <div class="flex justify-end gap-3 mt-6">
+                <button onclick="closeModal()" class="px-4 py-2 rounded-lg text-gray-300 hover:bg-slate-700 text-sm">إلغاء</button>
+                <button onclick="saveUserChanges()" class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm shadow-lg shadow-blue-600/20">حفظ التغييرات</button>
             </div>
         </div>
     </div>
 
     <script>
-        // --- 1. إعدادات فايربيس (نفسها تماماً) ---
+        // --- 1. إعدادات فايربيس ---
         const firebaseConfig = {
           apiKey: "AIzaSyBMPbJoYquYUf055uuzMt2IgdLDMJvvKPs",
           authDomain: "aidz-5f3c4.firebaseapp.com",
@@ -92,30 +171,23 @@
           measurementId: "G-N4SNXRYEKT"
         };
 
-        firebase.initializeApp(firebaseConfig);
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
         const auth = firebase.auth();
         const db = firebase.firestore();
 
-        // --- 2. إيميل الأدمن (ضع إيميلك هنا للحماية) ---
-        // 🔴 هام: استبدل هذا بإيميلك الحقيقي الذي ستسجل به
-        const ADMIN_EMAIL = "YOUR_EMAIL@gmail.com"; 
+        // --- المتغيرات العامة ---
+        let allUsersData = []; // لتخزين البيانات محلياً للبحث السريع
 
-        // --- 3. منطق الدخول ---
+        // --- 2. منطق الدخول ---
         function loginAdmin() {
             const provider = new firebase.auth.GoogleAuthProvider();
-            auth.signInWithPopup(provider).catch(alert);
+            auth.signInWithPopup(provider).catch(error => showToast(error.message, 'error'));
         }
 
         auth.onAuthStateChanged((user) => {
             if (user) {
-                // حماية بسيطة من الواجهة (الحماية الحقيقية في Rules)
-                /* يمكنك تفعيل هذا السطر لتقييد الدخول بإيميلك فقط
-                if(user.email !== ADMIN_EMAIL) {
-                    alert("لست مصرحاً لك بالدخول!");
-                    auth.signOut();
-                    return;
-                } 
-                */
                 document.getElementById('loginSection').style.display = 'none';
                 document.getElementById('dashboardSection').style.display = 'block';
                 document.getElementById('adminName').innerText = user.displayName;
@@ -126,90 +198,224 @@
             }
         });
 
-        // --- 4. جلب المستخدمين ---
+        // --- 3. جلب المستخدمين ---
         async function loadUsers() {
             const table = document.getElementById('usersTableBody');
-            table.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-gray-400">جاري التحميل...</td></tr>';
+            table.innerHTML = '<tr><td colspan="5" class="text-center py-8 text-gray-400"><i class="fa-solid fa-circle-notch fa-spin text-2xl text-blue-500 mb-2"></i><br>جاري الاتصال بالقاعدة...</td></tr>';
             
             try {
-                const snapshot = await db.collection('users').orderBy('createdAt', 'desc').get();
-                let html = '';
-                let count = 0;
-                let vipCount = 0;
-
+                // جلب أحدث 100 مستخدم
+                const snapshot = await db.collection('users').orderBy('createdAt', 'desc').limit(100).get();
+                
                 if (snapshot.empty) {
-                    table.innerHTML = '<tr><td colspan="5" class="text-center py-4">لا يوجد مستخدمين بعد.</td></tr>';
+                    table.innerHTML = '<tr><td colspan="5" class="text-center py-8">لا يوجد مستخدمين مسجلين.</td></tr>';
                     return;
                 }
 
+                // تخزين البيانات في المصفوفة
+                allUsersData = [];
                 snapshot.forEach(doc => {
-                    const u = doc.data();
-                    const uid = doc.id;
-                    count++;
-                    if(u.isPro) vipCount++;
-
-                    // تنسيق التاريخ
-                    const date = u.createdAt ? new Date(u.createdAt.seconds * 1000).toLocaleDateString('ar-DZ') : '-';
-                    
-                    // حالة الـ VIP
-                    const statusBadge = u.isPro 
-                        ? `<span class="bg-yellow-500/20 text-yellow-400 px-2 py-1 rounded text-xs font-bold border border-yellow-500/30">👑 VIP</span>`
-                        : `<span class="bg-slate-700 text-gray-400 px-2 py-1 rounded text-xs border border-slate-600">مجاني</span>`;
-                    
-                    // زر التفعيل/التعطيل
-                    const actionBtn = u.isPro
-                        ? `<button onclick="toggleVip('${uid}', false)" class="text-xs bg-red-900/30 hover:bg-red-900 text-red-400 px-3 py-1.5 rounded border border-red-800 transition">إلغاء VIP</button>`
-                        : `<button onclick="toggleVip('${uid}', true)" class="text-xs bg-green-900/30 hover:bg-green-900 text-green-400 px-3 py-1.5 rounded border border-green-800 transition shadow-[0_0_10px_rgba(74,222,128,0.2)]">تفعيل VIP ✨</button>`;
-
-                    html += `
-                        <tr class="bg-slate-800/30 border-b border-slate-700 hover:bg-slate-700/50 transition">
-                            <td class="px-6 py-4 font-bold text-white">${u.name || 'بدون اسم'}</td>
-                            <td class="px-6 py-4 text-gray-400 font-mono text-xs">${u.email}</td>
-                            <td class="px-6 py-4">${statusBadge}</td>
-                            <td class="px-6 py-4 text-gray-500 text-xs">${date}</td>
-                            <td class="px-6 py-4 text-center">
-                                ${actionBtn}
-                            </td>
-                        </tr>
-                    `;
+                    allUsersData.push({ id: doc.id, ...doc.data() });
                 });
 
-                table.innerHTML = html;
-                updateStats(count, vipCount);
+                renderUsersTable(allUsersData);
+                calculateStats(allUsersData);
+                showToast("تم تحديث البيانات بنجاح", "success");
 
             } catch (error) {
                 console.error(error);
-                table.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-red-400">خطأ في جلب البيانات: ${error.message}<br>تأكد من إعدادات الـ Rules في فايربيس.</td></tr>`;
+                table.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-red-400 bg-red-900/10 border border-red-900/20 m-4 rounded">خطأ: ${error.message}</td></tr>`;
             }
         }
 
-        // --- 5. وظيفة تفعيل الاشتراك (Toggle VIP) ---
+        // --- 4. عرض الجدول ---
+        function renderUsersTable(users) {
+            const table = document.getElementById('usersTableBody');
+            let html = '';
+
+            if (users.length === 0) {
+                table.innerHTML = '<tr><td colspan="5" class="text-center py-6 text-gray-500">لا توجد نتائج مطابقة للبحث.</td></tr>';
+                return;
+            }
+
+            users.forEach(u => {
+                const date = u.createdAt ? new Date(u.createdAt.seconds * 1000).toLocaleDateString('ar-DZ') : '-';
+                
+                // تصميم بادج الحالة
+                const statusBadge = u.isPro 
+                    ? `<span class="inline-flex items-center gap-1 bg-gradient-to-r from-yellow-600/20 to-yellow-500/20 text-yellow-400 px-2.5 py-1 rounded-full text-xs font-bold border border-yellow-500/30 shadow-[0_0_10px_rgba(234,179,8,0.1)]"><i class="fa-solid fa-crown text-[10px]"></i> VIP</span>`
+                    : `<span class="bg-slate-700/50 text-slate-400 px-2.5 py-1 rounded-full text-xs border border-slate-600/50">مجاني</span>`;
+                
+                // زر التبديل
+                const toggleBtn = u.isPro
+                    ? `<button onclick="toggleVip('${u.id}', false)" title="إلغاء VIP" class="w-8 h-8 rounded-lg bg-slate-700 hover:bg-red-500/20 text-gray-400 hover:text-red-400 transition flex items-center justify-center"><i class="fa-solid fa-user-xmark"></i></button>`
+                    : `<button onclick="toggleVip('${u.id}', true)" title="تفعيل VIP" class="w-8 h-8 rounded-lg bg-slate-700 hover:bg-green-500/20 text-gray-400 hover:text-green-400 transition flex items-center justify-center"><i class="fa-solid fa-check"></i></button>`;
+
+                html += `
+                    <tr class="bg-slate-800/10 border-b border-slate-700/50 hover:bg-slate-700/30 transition group">
+                        <td class="px-6 py-4">
+                            <div class="flex items-center gap-3">
+                                <div class="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-xs text-gray-300 font-bold border border-slate-600">
+                                    ${u.name ? u.name.charAt(0).toUpperCase() : '?'}
+                                </div>
+                                <div class="font-bold text-white text-sm">${u.name || 'بدون اسم'}</div>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4">
+                            <div class="text-gray-400 font-mono text-xs flex items-center gap-2">
+                                <i class="fa-regular fa-envelope text-slate-600"></i> ${u.email}
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 text-center">${statusBadge}</td>
+                        <td class="px-6 py-4 text-gray-500 text-xs font-mono">${date}</td>
+                        <td class="px-6 py-4">
+                            <div class="flex items-center justify-center gap-2 opacity-80 group-hover:opacity-100 transition">
+                                ${toggleBtn}
+                                <button onclick="openEditModal('${u.id}', '${u.name || ''}')" title="تعديل" class="w-8 h-8 rounded-lg bg-slate-700 hover:bg-blue-500/20 text-gray-400 hover:text-blue-400 transition flex items-center justify-center"><i class="fa-solid fa-pen"></i></button>
+                                <button onclick="deleteUser('${u.id}')" title="حذف" class="w-8 h-8 rounded-lg bg-slate-700 hover:bg-red-500 text-gray-400 hover:text-white transition flex items-center justify-center"><i class="fa-solid fa-trash"></i></button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            table.innerHTML = html;
+            document.getElementById('displayedCount').innerText = users.length;
+        }
+
+        // --- 5. البحث والفلترة ---
+        function filterUsers() {
+            const term = document.getElementById('searchInput').value.toLowerCase();
+            const filtered = allUsersData.filter(u => 
+                (u.name && u.name.toLowerCase().includes(term)) || 
+                (u.email && u.email.toLowerCase().includes(term))
+            );
+            renderUsersTable(filtered);
+        }
+
+        function calculateStats(users) {
+            const total = users.length;
+            const vip = users.filter(u => u.isPro).length;
+            document.getElementById('totalUsers').innerText = total;
+            document.getElementById('totalVip').innerText = vip;
+            document.getElementById('totalRevenue').innerText = (vip * 500).toLocaleString();
+        }
+
+        // --- 6. الإجراءات (Toggle VIP, Edit, Delete) ---
+        
+        // تبديل حالة VIP
         async function toggleVip(uid, makePro) {
+            try {
+                await db.collection('users').doc(uid).update({ isPro: makePro });
+                
+                // تحديث البيانات محلياً لتجنب إعادة التحميل
+                const userIndex = allUsersData.findIndex(u => u.id === uid);
+                if (userIndex > -1) allUsersData[userIndex].isPro = makePro;
+                
+                renderUsersTable(allUsersData); // إعادة الرسم
+                calculateStats(allUsersData); // تحديث الإحصائيات
+                
+                showToast(makePro ? "تم تفعيل العضوية الذهبية 👑" : "تم إلغاء العضوية الذهبية", "success");
+            } catch (error) {
+                showToast("خطأ: " + error.message, "error");
+            }
+        }
+
+        // الحذف
+        async function deleteUser(uid) {
+            if(!confirm("هل أنت متأكد من حذف بيانات هذا المستخدم نهائياً؟\n(ملاحظة: هذا يحذف البيانات من القاعدة فقط وليس حساب الدخول)")) return;
+
+            try {
+                await db.collection('users').doc(uid).delete();
+                
+                // حذف من المصفوفة المحلية
+                allUsersData = allUsersData.filter(u => u.id !== uid);
+                
+                // إعادة الفلترة (في حال كان هناك بحث نشط)
+                filterUsers();
+                calculateStats(allUsersData);
+                
+                showToast("تم حذف المستخدم بنجاح", "success");
+            } catch (error) {
+                showToast("فشل الحذف: " + error.message, "error");
+            }
+        }
+
+        // التعديل (Modal)
+        function openEditModal(uid, currentName) {
+            document.getElementById('editUid').value = uid;
+            document.getElementById('editName').value = currentName;
+            
+            const modal = document.getElementById('editModal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            setTimeout(() => document.getElementById('editModalContent').classList.remove('scale-95'), 10);
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('editModal');
+            document.getElementById('editModalContent').classList.add('scale-95');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            }, 200);
+        }
+
+        async function saveUserChanges() {
+            const uid = document.getElementById('editUid').value;
+            const newName = document.getElementById('editName').value;
             const btn = event.target;
             const originalText = btn.innerText;
-            btn.innerText = "جاري التنفيذ...";
+
+            btn.innerText = "جاري الحفظ...";
             btn.disabled = true;
 
             try {
-                await db.collection('users').doc(uid).update({
-                    isPro: makePro
-                });
-                // تحديث القائمة فوراً
-                loadUsers();
-                // إشعار بسيط
-                alert(makePro ? "تم تفعيل العضوية الذهبية بنجاح! ✅" : "تم إلغاء العضوية الذهبية.");
+                await db.collection('users').doc(uid).update({ name: newName });
+                
+                // تحديث محلي
+                const userIndex = allUsersData.findIndex(u => u.id === uid);
+                if (userIndex > -1) allUsersData[userIndex].name = newName;
+                
+                filterUsers(); // إعادة رسم الجدول
+                closeModal();
+                showToast("تم تحديث البيانات", "success");
             } catch (error) {
-                alert("حدث خطأ: " + error.message);
+                showToast(error.message, "error");
+            } finally {
                 btn.innerText = originalText;
                 btn.disabled = false;
             }
         }
 
-        function updateStats(total, vip) {
-            document.getElementById('totalUsers').innerText = total;
-            document.getElementById('totalVip').innerText = vip;
-            // افتراض: الاشتراك بـ 500 دج
-            document.getElementById('totalRevenue').innerText = (vip * 500).toLocaleString() + " DA";
+        // --- 7. أدوات مساعدة (Toast) ---
+        function showToast(message, type = 'normal') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            
+            // ألوان حسب النوع
+            let colors = "bg-slate-800 border-slate-600 text-white";
+            let icon = "fa-info-circle";
+            
+            if (type === 'success') {
+                colors = "bg-green-900/90 border-green-700 text-green-100";
+                icon = "fa-check-circle";
+            } else if (type === 'error') {
+                colors = "bg-red-900/90 border-red-700 text-red-100";
+                icon = "fa-triangle-exclamation";
+            }
+
+            toast.className = `toast glass ${colors} px-4 py-3 rounded-xl border flex items-center gap-3 shadow-lg min-w-[300px]`;
+            toast.innerHTML = `<i class="fa-solid ${icon}"></i> <span class="text-sm font-semibold">${message}</span>`;
+
+            container.appendChild(toast);
+
+            // إزالة بعد 3 ثواني
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateY(20px)';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
         }
     </script>
 </body>
