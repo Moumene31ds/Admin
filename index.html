@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dza-Genius | لوحة التحكم</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
+
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+
+    <style>
+        body { font-family: 'Cairo', sans-serif; background: #0f172a; color: #f8fafc; }
+        .glass { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.05); }
+    </style>
+</head>
+<body class="min-h-screen p-6">
+
+    <div id="loginSection" class="fixed inset-0 z-50 bg-slate-900 flex items-center justify-center">
+        <div class="glass p-8 rounded-2xl text-center max-w-sm w-full border border-blue-500/30">
+            <h1 class="text-2xl font-bold text-blue-400 mb-2">Dza-Genius Admin</h1>
+            <p class="text-gray-400 text-sm mb-6">منطقة محظورة: للمدير فقط</p>
+            <button onclick="loginAdmin()" class="w-full bg-blue-600 hover:bg-blue-500 text-white py-3 rounded-xl font-bold transition">
+                <i class="fa-brands fa-google"></i> دخول المدير
+            </button>
+        </div>
+    </div>
+
+    <div id="dashboardSection" class="hidden max-w-6xl mx-auto">
+        
+        <header class="flex justify-between items-center mb-8 bg-slate-800/50 p-4 rounded-2xl border border-slate-700">
+            <div>
+                <h1 class="text-2xl font-bold text-white">غرفة القيادة 🎮</h1>
+                <p class="text-xs text-gray-400">مرحباً أيها القائد <span id="adminName" class="text-green-400">...</span></p>
+            </div>
+            <button onclick="auth.signOut(); location.reload()" class="bg-red-500/10 text-red-400 px-4 py-2 rounded-lg hover:bg-red-500/20 text-sm font-bold">
+                <i class="fa-solid fa-right-from-bracket"></i> خروج
+            </button>
+        </header>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+            <div class="glass p-6 rounded-2xl border-l-4 border-blue-500">
+                <div class="text-gray-400 text-xs font-bold mb-1">إجمالي المستخدمين</div>
+                <div id="totalUsers" class="text-3xl font-black text-white">0</div>
+            </div>
+            <div class="glass p-6 rounded-2xl border-l-4 border-yellow-500 bg-yellow-900/10">
+                <div class="text-yellow-400 text-xs font-bold mb-1">مشتركي VIP</div>
+                <div id="totalVip" class="text-3xl font-black text-white">0</div>
+            </div>
+            <div class="glass p-6 rounded-2xl border-l-4 border-green-500 bg-green-900/10">
+                <div class="text-green-400 text-xs font-bold mb-1">الأرباح المقدرة (شهرياً)</div>
+                <div id="totalRevenue" class="text-3xl font-black text-white">0 DA</div>
+            </div>
+        </div>
+
+        <div class="glass rounded-2xl overflow-hidden">
+            <div class="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-800/50">
+                <h3 class="font-bold text-lg"><i class="fa-solid fa-users"></i> قائمة الأعضاء</h3>
+                <button onclick="loadUsers()" class="text-xs bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded text-white"><i class="fa-solid fa-rotate"></i> تحديث</button>
+            </div>
+            
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm text-right">
+                    <thead class="text-xs text-gray-400 uppercase bg-slate-800/80">
+                        <tr>
+                            <th class="px-6 py-3">المستخدم</th>
+                            <th class="px-6 py-3">الإيميل</th>
+                            <th class="px-6 py-3">الحالة</th>
+                            <th class="px-6 py-3">تاريخ الانضمام</th>
+                            <th class="px-6 py-3 text-center">تحكم</th>
+                        </tr>
+                    </thead>
+                    <tbody id="usersTableBody">
+                        </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- 1. إعدادات فايربيس (نفسها تماماً) ---
+        const firebaseConfig = {
+          apiKey: "AIzaSyBMPbJoYquYUf055uuzMt2IgdLDMJvvKPs",
+          authDomain: "aidz-5f3c4.firebaseapp.com",
+          projectId: "aidz-5f3c4",
+          storageBucket: "aidz-5f3c4.firebasestorage.app",
+          messagingSenderId: "921793664900",
+          appId: "1:921793664900:web:81325e6ddc16bf8561efd1",
+          measurementId: "G-N4SNXRYEKT"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        // --- 2. إيميل الأدمن (ضع إيميلك هنا للحماية) ---
+        // 🔴 هام: استبدل هذا بإيميلك الحقيقي الذي ستسجل به
+        const ADMIN_EMAIL = "YOUR_EMAIL@gmail.com"; 
+
+        // --- 3. منطق الدخول ---
+        function loginAdmin() {
+            const provider = new firebase.auth.GoogleAuthProvider();
+            auth.signInWithPopup(provider).catch(alert);
+        }
+
+        auth.onAuthStateChanged((user) => {
+            if (user) {
+                // حماية بسيطة من الواجهة (الحماية الحقيقية في Rules)
+                /* يمكنك تفعيل هذا السطر لتقييد الدخول بإيميلك فقط
+                if(user.email !== ADMIN_EMAIL) {
+                    alert("لست مصرحاً لك بالدخول!");
+                    auth.signOut();
+                    return;
+                } 
+                */
+                document.getElementById('loginSection').style.display = 'none';
+                document.getElementById('dashboardSection').style.display = 'block';
+                document.getElementById('adminName').innerText = user.displayName;
+                loadUsers();
+            } else {
+                document.getElementById('loginSection').style.display = 'flex';
+                document.getElementById('dashboardSection').style.display = 'none';
+            }
+        });
+
+        // --- 4. جلب المستخدمين ---
+        async function loadUsers() {
+            const table = document.getElementById('usersTableBody');
+            table.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-gray-400">جاري التحميل...</td></tr>';
+            
+            try {
+                const snapshot = await db.collection('users').orderBy('createdAt', 'desc').get();
+                let html = '';
+                let count = 0;
+                let vipCount = 0;
+
+                if (snapshot.empty) {
+                    table.innerHTML = '<tr><td colspan="5" class="text-center py-4">لا يوجد مستخدمين بعد.</td></tr>';
+                    return;
+                }
+
+                snapshot.forEach(doc => {
+                    const u = doc.data();
+                    const uid = doc.id;
+                    count++;
+                    if(u.isPro) vipCount++;
+
+                    // تنسيق التاريخ
+                    const date = u.createdAt ? new Date(u.createdAt.seconds * 1000).toLocaleDateString('ar-DZ') : '-';
+                    
+                    // حالة الـ VIP
+                    const statusBadge = u.isPro 
+                        ? `<span class="bg-yellow-500/20 text-yellow-400 px-2 py-1 rounded text-xs font-bold border border-yellow-500/30">👑 VIP</span>`
+                        : `<span class="bg-slate-700 text-gray-400 px-2 py-1 rounded text-xs border border-slate-600">مجاني</span>`;
+                    
+                    // زر التفعيل/التعطيل
+                    const actionBtn = u.isPro
+                        ? `<button onclick="toggleVip('${uid}', false)" class="text-xs bg-red-900/30 hover:bg-red-900 text-red-400 px-3 py-1.5 rounded border border-red-800 transition">إلغاء VIP</button>`
+                        : `<button onclick="toggleVip('${uid}', true)" class="text-xs bg-green-900/30 hover:bg-green-900 text-green-400 px-3 py-1.5 rounded border border-green-800 transition shadow-[0_0_10px_rgba(74,222,128,0.2)]">تفعيل VIP ✨</button>`;
+
+                    html += `
+                        <tr class="bg-slate-800/30 border-b border-slate-700 hover:bg-slate-700/50 transition">
+                            <td class="px-6 py-4 font-bold text-white">${u.name || 'بدون اسم'}</td>
+                            <td class="px-6 py-4 text-gray-400 font-mono text-xs">${u.email}</td>
+                            <td class="px-6 py-4">${statusBadge}</td>
+                            <td class="px-6 py-4 text-gray-500 text-xs">${date}</td>
+                            <td class="px-6 py-4 text-center">
+                                ${actionBtn}
+                            </td>
+                        </tr>
+                    `;
+                });
+
+                table.innerHTML = html;
+                updateStats(count, vipCount);
+
+            } catch (error) {
+                console.error(error);
+                table.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-red-400">خطأ في جلب البيانات: ${error.message}<br>تأكد من إعدادات الـ Rules في فايربيس.</td></tr>`;
+            }
+        }
+
+        // --- 5. وظيفة تفعيل الاشتراك (Toggle VIP) ---
+        async function toggleVip(uid, makePro) {
+            const btn = event.target;
+            const originalText = btn.innerText;
+            btn.innerText = "جاري التنفيذ...";
+            btn.disabled = true;
+
+            try {
+                await db.collection('users').doc(uid).update({
+                    isPro: makePro
+                });
+                // تحديث القائمة فوراً
+                loadUsers();
+                // إشعار بسيط
+                alert(makePro ? "تم تفعيل العضوية الذهبية بنجاح! ✅" : "تم إلغاء العضوية الذهبية.");
+            } catch (error) {
+                alert("حدث خطأ: " + error.message);
+                btn.innerText = originalText;
+                btn.disabled = false;
+            }
+        }
+
+        function updateStats(total, vip) {
+            document.getElementById('totalUsers').innerText = total;
+            document.getElementById('totalVip').innerText = vip;
+            // افتراض: الاشتراك بـ 500 دج
+            document.getElementById('totalRevenue').innerText = (vip * 500).toLocaleString() + " DA";
+        }
+    </script>
+</body>
+</html>
